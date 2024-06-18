@@ -15,7 +15,6 @@ from client.utils import recover_transaction
 
 
 # Values used across all tests
-CHAIN_ID = 300
 ADDR = bytes.fromhex("0011223344556677889900112233445566778899")
 ADDR2 = bytes.fromhex("5a321744667052affa8386ed49e00ef223cbffc3")
 ADDR3 = bytes.fromhex("dac17f958d2ee523a2206206994597c13d831ec7")
@@ -36,11 +35,21 @@ def test_sign_simple(firmware: Firmware,
                      scenario_navigator: NavigateWithScenario,
                      test_name: str,
                      default_screenshot_path: Path):
-    
+   
+    # https://www.quicknode.com/guides/ethereum-development/transactions/how-to-send-erc20-tokens-using-web3py
+    # https://ethereum.org/en/developers/docs/standards/tokens/erc-20/
+    # https://explorer.zksync.io/address/0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E#contract
+
+    # ledger supported stuff
+    # https://support.ledger.com/hc/en-us/articles/10479755500573-Supported-Coins-and-Tokens-in-Ledger-Live?docs=true
+
+    # https://github.com/LedgerHQ/ledger-live/tree/develop/libs/ledgerjs/packages/cryptoassets
+
     # Constants for the RPC URL and contract details
-    CONTRACT_ADDRESS = Web3.to_checksum_address('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E')
+    CONTRACT_ADDRESS = Web3.to_checksum_address('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E') 
 
     # Create a Web3 instance connected to the specified RPC URL
+    CHAIN_ID = 324
     w3 = Web3(Web3.HTTPProvider('https://mainnet.era.zksync.io'))
 
     # Check for connection to the Ethereum network
@@ -48,12 +57,12 @@ def test_sign_simple(firmware: Firmware,
         raise ConnectionError("Failed to connect to HTTPProvider")
 
     # Load the contract ABI from a file
-    with open('abi.json') as abi_file:
+    with open('abis/erc20.json') as abi_file:
         contract_abi = json.load(abi_file)
 
     # Create a contract object
     contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
-    
+  
     path = "m/44'/60'/1'/0/0"
     app_client = EthAppClient(backend)
     with app_client.get_public_addr(bip32_path=path, display=False):
@@ -61,10 +70,16 @@ def test_sign_simple(firmware: Firmware,
     _, FROM_ADDR, _ = ResponseParser.pk_addr(app_client.response().data)
     nonce = w3.eth.get_transaction_count(FROM_ADDR)
 
+    symbol = contract.functions.symbol().call()
+    decimals = contract.functions.decimals().call()
+    response = app_client.provide_token_metadata(symbol,
+        bytes.fromhex(CONTRACT_ADDRESS[2:]), decimals, CHAIN_ID)
+    assert response.status == StatusWord.OK
+
     TO_ADDR = ADDR2 
     token_amount = w3.to_wei(1, 'ether')
     tx_params = contract.functions.transfer(TO_ADDR, token_amount).build_transaction({
-        'chainId': 324,
+        'chainId': CHAIN_ID,
         'gas': 2000000,  # Adjust the gas limit as needed
         'gasPrice': w3.eth.gas_price,  # Adjust the gas price as needed or use w3.eth.generate_gas_price()
         'nonce': nonce,

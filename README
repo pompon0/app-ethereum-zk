@@ -6,7 +6,7 @@ pip install -r tests/ragger/requirements.txt
 
 # BUILD THE BINARY
 docker run --rm -ti --user "$(id -u):$(id -g)" -v "$(realpath .):/app" ghcr.io/ledgerhq/ledger-app-builder/ledger-app-dev-tools:latest
-(in container) make BOLOS_SDK=$NANOX_SDK DEBUG=1
+(in container) make BOLOS_SDK=$NANOX_SDK DEBUG=1 BYPASS_SIGNATURES=1
 (close the container)
 
 # RUN THE SIGNING TEST
