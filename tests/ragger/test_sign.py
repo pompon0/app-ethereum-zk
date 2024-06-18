@@ -87,7 +87,7 @@ def test_sign_simple(firmware: Firmware,
 
     with app_client.sign(path, tx_params):
         end_text = "Accept"
-        scenario_navigator.review_approve(default_screenshot_path, test_name, end_text, (test_name != ""))
+        scenario_navigator.review_approve(default_screenshot_path, test_name, end_text, True)
 
     # verify signature
     vrs = ResponseParser.signature(app_client.response().data)
