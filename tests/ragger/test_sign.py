@@ -14,7 +14,7 @@ from client.utils import recover_transaction
 
 
 # Values used across all tests
-CHAIN_ID = 1
+CHAIN_ID = 300
 ADDR = bytes.fromhex("0011223344556677889900112233445566778899")
 ADDR2 = bytes.fromhex("5a321744667052affa8386ed49e00ef223cbffc3")
 ADDR3 = bytes.fromhex("dac17f958d2ee523a2206206994597c13d831ec7")
@@ -144,7 +144,7 @@ def test_sign_eip_2930(firmware: Firmware,
         "gas": GAS_LIMIT,
         "to": ADDR4,
         "value": Web3.to_wei(0.01, "ether"),
-        "chainId": 3,
+        "chainId": 300,
         "accessList": [
             {
                 "address": "0x0000000000000000000000000000000000000001",
