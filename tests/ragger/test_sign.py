@@ -1,5 +1,6 @@
 from pathlib import Path
 from web3 import Web3
+import json
 
 from ragger.error import ExceptionRAPDU
 from ragger.backend import BackendInterface
@@ -29,129 +30,54 @@ GAS_LIMIT = 21000
 AMOUNT = 1.22
 AMOUNT2 = 0.31415
 
-
-def common(firmware: Firmware,
-           backend: BackendInterface,
-           navigator: Navigator,
-           scenario_navigator: NavigateWithScenario,
-           default_screenshot_path: Path,
-           tx_params: dict,
-           test_name: str = "",
-           path: str = BIP32_PATH,
-           confirm: bool = False):
-    app_client = EthAppClient(backend)
-
-    with app_client.get_public_addr(bip32_path=path, display=False):
-        pass
-    _, DEVICE_ADDR, _ = ResponseParser.pk_addr(app_client.response().data)
-
-    with app_client.sign(path, tx_params):
-        if not firmware.device.startswith("nano") and confirm:
-            navigator.navigate_and_compare(default_screenshot_path,
-                                           f"{test_name}/confirm",
-                                           [NavInsID.USE_CASE_CHOICE_CONFIRM],
-                                           screen_change_after_last_instruction=False)
-
-        if firmware.device.startswith("nano"):
-            end_text = "Accept"
-        else:
-            end_text = "Sign"
-
-        scenario_navigator.review_approve(default_screenshot_path, test_name, end_text, (test_name != ""))
-
-    # verify signature
-    vrs = ResponseParser.signature(app_client.response().data)
-    addr = recover_transaction(tx_params, vrs)
-    assert addr == DEVICE_ADDR
-
-
-def common_reject(backend: BackendInterface,
-                  scenario_navigator: NavigateWithScenario,
-                  default_screenshot_path: Path,
-                  tx_params: dict,
-                  test_name: str,
-                  path: str = BIP32_PATH):
-    app_client = EthAppClient(backend)
-
-    try:
-        with app_client.sign(path, tx_params):
-            scenario_navigator.review_reject(default_screenshot_path, test_name)
-
-    except ExceptionRAPDU as e:
-        assert e.status == StatusWord.CONDITION_NOT_SATISFIED
-    else:
-        assert False  # An exception should have been raised
-
-
-def common_fail(backend: BackendInterface,
-                tx_params: dict,
-                expected: StatusWord,
-                path: str = BIP32_PATH):
-    app_client = EthAppClient(backend)
-
-    try:
-        with app_client.sign(path, tx_params):
-            pass
-
-    except ExceptionRAPDU as e:
-        assert e.status == expected
-    else:
-        assert False  # An exception should have been raised
-
-def test_1559(firmware: Firmware,
-              backend: BackendInterface,
-              navigator: Navigator,
-              scenario_navigator: NavigateWithScenario,
-              default_screenshot_path: Path):
-    tx_params: dict = {
-        "nonce": NONCE,
-        "maxFeePerGas": Web3.to_wei(145, "gwei"),
-        "maxPriorityFeePerGas": Web3.to_wei(1.5, "gwei"),
-        "gas": GAS_LIMIT,
-        "to": ADDR,
-        "value": Web3.to_wei(AMOUNT, "ether"),
-        "chainId": CHAIN_ID
-    }
-    common(firmware, backend, navigator, scenario_navigator, default_screenshot_path, tx_params)
-
-
 def test_sign_simple(firmware: Firmware,
                      backend: BackendInterface,
                      navigator: Navigator,
                      scenario_navigator: NavigateWithScenario,
                      test_name: str,
                      default_screenshot_path: Path):
-    tx_params: dict = {
-        "nonce": NONCE2,
-        "gasPrice": Web3.to_wei(GAS_PRICE, 'gwei'),
-        "gas": GAS_LIMIT,
-        "to": ADDR2,
-        "value": Web3.to_wei(AMOUNT2, "ether"),
-        "chainId": CHAIN_ID
-    }
-    common(firmware, backend, navigator, scenario_navigator, default_screenshot_path, tx_params, test_name, "m/44'/60'/1'/0/0")
+    
+    # Constants for the RPC URL and contract details
+    CONTRACT_ADDRESS = Web3.to_checksum_address('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E')
 
-def test_sign_eip_2930(firmware: Firmware,
-                       backend: BackendInterface,
-                       navigator: Navigator,
-                       scenario_navigator: NavigateWithScenario,
-                       test_name: str,
-                       default_screenshot_path: Path):
+    # Create a Web3 instance connected to the specified RPC URL
+    w3 = Web3(Web3.HTTPProvider('https://mainnet.era.zksync.io'))
 
-    tx_params = {
-        "nonce": NONCE,
-        "gasPrice": Web3.to_wei(GAS_PRICE2, "gwei"),
-        "gas": GAS_LIMIT,
-        "to": ADDR4,
-        "value": Web3.to_wei(0.01, "ether"),
-        "chainId": 300,
-        "accessList": [
-            {
-                "address": "0x0000000000000000000000000000000000000001",
-                "storageKeys": [
-                    "0x0100000000000000000000000000000000000000000000000000000000000000"
-                ]
-            }
-        ],
-    }
-    common(firmware, backend, navigator, scenario_navigator, default_screenshot_path, tx_params, test_name)
+    # Check for connection to the Ethereum network
+    if not w3.is_connected():
+        raise ConnectionError("Failed to connect to HTTPProvider")
+
+    # Load the contract ABI from a file
+    with open('abi.json') as abi_file:
+        contract_abi = json.load(abi_file)
+
+    # Create a contract object
+    contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+    
+    path = "m/44'/60'/1'/0/0"
+    app_client = EthAppClient(backend)
+    with app_client.get_public_addr(bip32_path=path, display=False):
+        pass
+    _, FROM_ADDR, _ = ResponseParser.pk_addr(app_client.response().data)
+    nonce = w3.eth.get_transaction_count(FROM_ADDR)
+
+    TO_ADDR = ADDR2 
+    token_amount = w3.to_wei(1, 'ether')
+    tx_params = contract.functions.transfer(TO_ADDR, token_amount).build_transaction({
+        'chainId': 324,
+        'gas': 2000000,  # Adjust the gas limit as needed
+        'gasPrice': w3.eth.gas_price,  # Adjust the gas price as needed or use w3.eth.generate_gas_price()
+        'nonce': nonce,
+    })
+
+    with app_client.sign(path, tx_params):
+        end_text = "Accept"
+        scenario_navigator.review_approve(default_screenshot_path, test_name, end_text, (test_name != ""))
+
+    # verify signature
+    vrs = ResponseParser.signature(app_client.response().data)
+    addr = recover_transaction(tx_params, vrs)
+    assert addr == FROM_ADDR
+
+    # send the transaction
+    # tx_hash(w3.eth.send_raw_transaction(tx.rawTransaction))
