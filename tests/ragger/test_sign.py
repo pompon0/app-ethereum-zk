@@ -46,11 +46,14 @@ def test_sign_simple(firmware: Firmware,
     # https://github.com/LedgerHQ/ledger-live/tree/develop/libs/ledgerjs/packages/cryptoassets
 
     # Constants for the RPC URL and contract details
-    CONTRACT_ADDRESS = Web3.to_checksum_address('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E') 
+    # CONTRACT_ADDRESS = Web3.to_checksum_address('0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E') 
+    CONTRACT_ADDRESS = Web3.to_checksum_address('0xF62Be9C568B0979E0208BaFFAE3e595443Fa2998')
 
     # Create a Web3 instance connected to the specified RPC URL
-    CHAIN_ID = 324
-    w3 = Web3(Web3.HTTPProvider('https://mainnet.era.zksync.io'))
+    # CHAIN_ID = 324
+    # w3 = Web3(Web3.HTTPProvider('https://mainnet.era.zksync.io'))
+    CHAIN_ID = 300
+    w3 = Web3(Web3.HTTPProvider('https://zksync-era-sepolia.blockpi.network/v1/rpc/public'))
 
     # Check for connection to the Ethereum network
     if not w3.is_connected():
@@ -62,6 +65,7 @@ def test_sign_simple(firmware: Firmware,
 
     # Create a contract object
     contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=contract_abi)
+    assert contract.functions.symbol().call()=='ZK'
   
     path = "m/44'/60'/1'/0/0"
     app_client = EthAppClient(backend)
