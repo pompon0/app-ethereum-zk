@@ -20,24 +20,18 @@ static bool asset_info_is_set(uint8_t index) {
     return tmpCtx.transactionContext.assetSet[index];
 }
 
-const extraInfo_t ZK_TOKEN = {
+const tokenDefinition_t ZK_TOKEN = {
   {
-    {
-      0x5a, 0x7d, 0x6b, 0x2f, 0x92, 0xc7, 0x7f, 0xad, 0x6c, 0xca,
-      0xbd, 0x7e, 0xe0, 0x62, 0x4e, 0x64, 0x90, 0x7e, 0xaf, 0x3e
-    },
-    {'Z','K'},
-    18,
-  }
+    0x5a, 0x7d, 0x6b, 0x2f, 0x92, 0xc7, 0x7f, 0xad, 0x6c, 0xca,
+    0xbd, 0x7e, 0xe0, 0x62, 0x4e, 0x64, 0x90, 0x7e, 0xaf, 0x3e
+  },
+  {'Z','K'},
+  18,
 };
 
 extraInfo_t *get_asset_info_by_addr(const uint8_t *contractAddress) {
     // Works for ERC-20 & NFT tokens since both structs in the union have the
     // contract address aligned
-    if (memcmp(ZK_TOKEN.token.address, contractAddress, ADDRESS_LENGTH) == 0) {
-      PRINTF("ZK HACK ACTIVATED\n");
-      return &ZK_TOKEN;
-    }
     for (uint8_t i = 0; i < MAX_ASSETS; i++) {
         extraInfo_t *currentItem = get_asset_info(i);
         if (asset_info_is_set(i) &&
@@ -45,6 +39,14 @@ extraInfo_t *get_asset_info_by_addr(const uint8_t *contractAddress) {
             PRINTF("Token found at index %d\n", i);
             return currentItem;
         }
+    }
+    // If token was not found and it is the ZK token, then add it to the assets.
+    if (memcmp(ZK_TOKEN.address, contractAddress, ADDRESS_LENGTH) == 0) {
+      PRINTF("ZK HACK ACTIVATED\n");
+      extraInfo_t *asset = get_current_asset_info();
+      memmove(&asset->token,&ZK_TOKEN,sizeof(tokenDefinition_t));
+      validate_current_asset_info();
+      return asset;
     }
 
     return NULL;
