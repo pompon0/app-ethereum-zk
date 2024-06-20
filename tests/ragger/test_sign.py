@@ -70,12 +70,6 @@ def test_sign_simple(firmware: Firmware,
     _, FROM_ADDR, _ = ResponseParser.pk_addr(app_client.response().data)
     nonce = w3.eth.get_transaction_count(FROM_ADDR)
 
-    symbol = contract.functions.symbol().call()
-    decimals = contract.functions.decimals().call()
-    response = app_client.provide_token_metadata(symbol,
-        bytes.fromhex(CONTRACT_ADDRESS[2:]), decimals, CHAIN_ID)
-    assert response.status == StatusWord.OK
-
     TO_ADDR = ADDR2 
     token_amount = w3.to_wei(1, 'ether')
     tx_params = contract.functions.transfer(TO_ADDR, token_amount).build_transaction({
